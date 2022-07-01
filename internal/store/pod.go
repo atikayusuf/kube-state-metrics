@@ -60,9 +60,11 @@ func podMetricFamilies(allowAnnotationsList, allowLabelsList []string) []generat
 		createPodDeletionTimestampFamilyGenerator(),
 		createPodInfoFamilyGenerator(),
 		createPodIPFamilyGenerator(),
+		createPodInitContainerCompletionTimeFamilyGenerator(),
 		createPodInitContainerInfoFamilyGenerator(),
 		createPodInitContainerResourceLimitsFamilyGenerator(),
 		createPodInitContainerResourceRequestsFamilyGenerator(),
+		createPodInitContainerStateStartedFamilyGenerator(),
 		createPodInitContainerStatusLastTerminatedReasonFamilyGenerator(),
 		createPodInitContainerStatusReadyFamilyGenerator(),
 		createPodInitContainerStatusRestartsTotalFamilyGenerator(),
@@ -655,6 +657,31 @@ func createPodIPFamilyGenerator() generator.FamilyGenerator {
 		}))
 }
 
+func createPodInitContainerCompletionTimeFamilyGenerator() generator.FamilyGenerator {
+	return *generator.NewFamilyGenerator(
+		"kube_pod_init_container_completion_time",
+		"Completion time in unix timestamp for an init container.",
+		metric.Gauge,
+		"",
+		wrapPodFunc(func(p *v1.Pod) *metric.Family {
+			ms := make([]*metric.Metric, 0, len(p.Status.InitContainerStatuses))
+			for _, cs := range p.Status.InitContainerStatuses {
+				if cs.State.Terminated != nil {
+					ms = append(ms, &metric.Metric{
+						LabelKeys:   []string{"container"},
+						LabelValues: []string{cs.Name},
+						Value:       float64((cs.State.Terminated.FinishedAt).Unix()),
+					})
+				}
+			}
+
+			return &metric.Family{
+				Metrics: ms,
+			}
+		}),
+	)
+}
+
 func createPodInitContainerInfoFamilyGenerator() generator.FamilyGenerator {
 	return *generator.NewFamilyGeneratorWithStability(
 		"kube_pod_init_container_info",
@@ -802,6 +829,37 @@ func createPodInitContainerResourceRequestsFamilyGenerator() generator.FamilyGen
 
 			for _, metric := range ms {
 				metric.LabelKeys = []string{"container", "node", "resource", "unit"}
+			}
+
+			return &metric.Family{
+				Metrics: ms,
+			}
+		}),
+	)
+}
+
+func createPodInitContainerStateStartedFamilyGenerator() generator.FamilyGenerator {
+	return *generator.NewFamilyGenerator(
+		"kube_pod_init_container_state_started",
+		"Start time in unix timestamp for an init container.",
+		metric.Gauge,
+		"",
+		wrapPodFunc(func(p *v1.Pod) *metric.Family {
+			ms := make([]*metric.Metric, 0, len(p.Status.InitContainerStatuses))
+			for _, cs := range p.Status.InitContainerStatuses {
+				if cs.State.Running != nil {
+					ms = append(ms, &metric.Metric{
+						LabelKeys:   []string{"container"},
+						LabelValues: []string{cs.Name},
+						Value:       float64((cs.State.Running.StartedAt).Unix()),
+					})
+				} else if cs.State.Terminated != nil {
+					ms = append(ms, &metric.Metric{
+						LabelKeys:   []string{"container"},
+						LabelValues: []string{cs.Name},
+						Value:       float64((cs.State.Terminated.StartedAt).Unix()),
+					})
+				}
 			}
 
 			return &metric.Family{

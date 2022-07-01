@@ -418,6 +418,10 @@ func TestPodStore(t *testing.T) {
 							Name:  "initcontainer1",
 							Image: "k8s.gcr.io/initfoo_spec",
 						},
+						{
+							Name:  "initcontainer2",
+							Image: "k8s.gcr.io/initfoo_spec",
+						},
 					},
 				},
 				Status: v1.PodStatus{
@@ -437,7 +441,24 @@ func TestPodStore(t *testing.T) {
 						{
 							Name: "initcontainer1",
 							State: v1.ContainerState{
-								Running: &v1.ContainerStateRunning{},
+								Running: &v1.ContainerStateRunning{
+									StartedAt: metav1.Time{
+										Time: time.Unix(1501777018, 0),
+									},
+								},
+							},
+						},
+						{
+							Name: "initcontainer2",
+							State: v1.ContainerState{
+								Terminated: &v1.ContainerStateTerminated{
+									StartedAt: metav1.Time{
+										Time: time.Unix(1501777018, 0),
+									},
+									FinishedAt: metav1.Time{
+										Time: time.Unix(1501777019, 0),
+									},
+								},
 							},
 						},
 					},
@@ -452,6 +473,8 @@ func TestPodStore(t *testing.T) {
 				# HELP kube_pod_container_status_waiting_reason [STABLE] Describes the reason the container is currently in waiting state.
 				# HELP kube_pod_init_container_status_running [STABLE] Describes whether the init container is currently in running state.
 				# HELP kube_pod_init_container_status_terminated [STABLE] Describes whether the init container is currently in terminated state.
+				# HELP kube_pod_init_container_completion_time Completion time in unix timestamp for an init container.
+				# HELP kube_pod_init_container_state_started Start time in unix timestamp for an init container.
 				# HELP kube_pod_init_container_status_terminated_reason Describes the reason the init container is currently in terminated state.
 				# HELP kube_pod_init_container_status_waiting [STABLE] Describes whether the init container is currently in waiting state.
 				# HELP kube_pod_init_container_status_waiting_reason Describes the reason the init container is currently in waiting state.
@@ -461,6 +484,8 @@ func TestPodStore(t *testing.T) {
 				# TYPE kube_pod_container_status_terminated_reason gauge
 				# TYPE kube_pod_container_status_waiting gauge
 				# TYPE kube_pod_container_status_waiting_reason gauge
+				# TYPE kube_pod_init_container_completion_time gauge
+				# TYPE kube_pod_init_container_state_started gauge
 				# TYPE kube_pod_init_container_status_running gauge
 				# TYPE kube_pod_init_container_status_terminated gauge
 				# TYPE kube_pod_init_container_status_terminated_reason gauge
@@ -470,6 +495,9 @@ func TestPodStore(t *testing.T) {
 				kube_pod_container_status_running{container="container1",namespace="ns1",pod="pod1",uid="uid1"} 1
 				kube_pod_container_status_terminated{container="container1",namespace="ns1",pod="pod1",uid="uid1"} 0
 				kube_pod_container_status_waiting{container="container1",namespace="ns1",pod="pod1",uid="uid1"} 0
+				kube_pod_init_container_completion_time{container="initcontainer2",namespace="ns1",pod="pod1",uid="uid1"} 1.501777019e+09
+				kube_pod_init_container_state_started{container="initcontainer1",namespace="ns1",pod="pod1",uid="uid1"} 1.501777018e+09
+				kube_pod_init_container_state_started{container="initcontainer2",namespace="ns1",pod="pod1",uid="uid1"} 1.501777018e+09
 				kube_pod_init_container_status_running{container="initcontainer1",namespace="ns1",pod="pod1",uid="uid1"} 1
 				kube_pod_init_container_status_terminated{container="initcontainer1",namespace="ns1",pod="pod1",uid="uid1"} 0
 				kube_pod_init_container_status_waiting{container="initcontainer1",namespace="ns1",pod="pod1",uid="uid1"} 0
@@ -480,6 +508,8 @@ func TestPodStore(t *testing.T) {
 				"kube_pod_container_status_waiting",
 				"kube_pod_container_status_terminated",
 				"kube_pod_container_status_terminated_reason",
+				"kube_pod_init_container_completion_time",
+				"kube_pod_init_container_state_started",
 				"kube_pod_init_container_status_running",
 				"kube_pod_init_container_status_waiting",
 				"kube_pod_init_container_status_waiting_reason",
